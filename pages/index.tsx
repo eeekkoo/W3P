@@ -17,6 +17,8 @@ import { Plus } from '@geist-ui/icons'
 import dynamic from 'next/dynamic'
 const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false })
 import { ApexOptions } from 'apexcharts'
+import DayPickerInput from 'react-day-picker/DayPickerInput'
+import 'react-day-picker/lib/style.css'
 
 type Target = {
   type: AssetType
@@ -138,13 +140,17 @@ const AddTransaction = () => {
               <Text font={0.9} my={0} type="secondary" mb={0.5}>
                 Asset type
               </Text>
-              <Select placeholder="Frameworks" width={'100%'}>
+              <Select placeholder="NFTs" width={'100%'}>
+                <Select.Option value={'nfts'}>NFTs</Select.Option>
                 <Select.Option value={'cryptocurrency'}> Cryptocurrency</Select.Option>
                 <Select.Option value={'stablecoins'}>Stablecoins</Select.Option>
-                <Select.Option value={'nfts'}>NFTs</Select.Option>
                 <Select.Option value={'fiat'}>Fiat</Select.Option>
               </Select>
             </div>
+            <Spacer />
+            <Spacer />
+
+            <DatePicker />
             <Spacer />
             <Spacer />
 
@@ -172,6 +178,17 @@ const AddTransaction = () => {
         <Modal.Action>Save</Modal.Action>
       </Modal>
     </>
+  )
+}
+
+const DatePicker = () => {
+  return (
+    <div>
+      <Text font={0.9} my={0} type="secondary" mb={0.5}>
+        Date added
+      </Text>
+      <DayPickerInput onDayChange={day => console.log(day)} />
+    </div>
   )
 }
 
