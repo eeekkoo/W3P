@@ -91,7 +91,7 @@ export default function Home() {
 const Crypto = () => {
   return (
     <div style={{ marginTop: '1em' }}>
-      <Tabs initialValue="assets" hideDivider hideBorder leftSpace={0}>
+      <Tabs initialValue="assets" leftSpace={0}>
         <Tabs.Item label="Assets" value="assets">
           <Text h2 b>
             Assets
