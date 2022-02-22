@@ -10,8 +10,9 @@ import {
   useModal,
   Modal,
   Spacer,
-  Dot,
   Select,
+  Progress,
+  useTheme,
 } from '@geist-ui/core'
 import { Plus } from '@geist-ui/icons'
 import dynamic from 'next/dynamic'
@@ -19,47 +20,23 @@ const ReactApexChart = dynamic(() => import('react-apexcharts'), { ssr: false })
 import { ApexOptions } from 'apexcharts'
 import DayPickerInput from 'react-day-picker/DayPickerInput'
 import 'react-day-picker/lib/style.css'
+import useSWR from 'swr'
+import { useContext, createContext, useEffect, useState } from 'react'
 
-type Target = {
-  type: AssetType
-  target: Number
+const AppContext = createContext()
+const useApp = () => useContext(AppContext)
+
+const AppContextProivder = (props: any) => {
+  const fetcher = url => fetch(url).then(r => r.json())
+  const { data, error } = useSWR('/api/portfolio', fetcher)
+
+  return (
+    <AppContext.Provider
+      value={{ distribution: data?.distribution, transactions: data?.transactions }}
+      {...props}
+    />
+  )
 }
-
-type Transaction = {
-  name: string
-  chain?: string
-  type: AssetType
-  quantity: Number
-  acquisitionCost: Number
-  fees: Number
-  createdAt: string
-}
-
-enum AssetType {
-  CRYPTOCURRENCY,
-  STABLECOIN,
-  NFT,
-  FIAT,
-}
-
-let targets: Target[] = [
-  {
-    type: AssetType.CRYPTOCURRENCY,
-    target: 0.4,
-  },
-  {
-    type: AssetType.NFT,
-    target: 0.4,
-  },
-  {
-    type: AssetType.STABLECOIN,
-    target: 0.1,
-  },
-  {
-    type: AssetType.FIAT,
-    target: 0.1,
-  },
-]
 
 export default function Home() {
   return (
@@ -68,22 +45,24 @@ export default function Home() {
         <title>Geist UI with NextJS</title>
         <link rel="icon" href="/favicon.ico" />
       </Head>
-      <Page dotBackdrop width="1280px" padding={1}>
-        <Text my={0} type="secondary">
-          Balance
-        </Text>
-        <Text h1 b>
-          £13,0000
-        </Text>
-        <div style={{ display: 'grid', gridTemplateColumns: '4fr' }}>
-          <Area />
-          {/* <Pie /> */}
-        </div>
+      <AppContextProivder>
+        <Page dotBackdrop width="1280px" padding={1}>
+          <Text my={0} type="secondary">
+            Portfolio value
+          </Text>
+          <Text h1 b>
+            £13,000
+          </Text>
+          <div style={{ display: 'grid', gridTemplateColumns: '4fr' }}>
+            <Area />
+            {/* <Pie /> */}
+          </div>
 
-        <Crypto />
+          <Crypto />
 
-        <Grid.Container justify="center" gap={3} mt="100px"></Grid.Container>
-      </Page>
+          <Grid.Container justify="center" gap={3} mt="100px"></Grid.Container>
+        </Page>
+      </AppContextProivder>
     </div>
   )
 }
@@ -91,10 +70,10 @@ export default function Home() {
 const Crypto = () => {
   return (
     <div style={{ marginTop: '1em' }}>
-      <Tabs initialValue="assets" leftSpace={0}>
-        <Tabs.Item label="Assets" value="assets">
+      <Tabs initialValue="distribution" leftSpace={0}>
+        <Tabs.Item label="Distribution" value="distribution">
           <Text h2 b>
-            Assets
+            Distribution
           </Text>
           <AssetsTable />
         </Tabs.Item>
@@ -115,6 +94,22 @@ const Crypto = () => {
 
 const AddTransaction = () => {
   const { visible, setVisible, bindings } = useModal()
+  const [costPlaceholder, setCostPlaceholder] = useState('$1000')
+  const [type, setType] = useState()
+  const [isNFT, setIsNFT] = useState(false)
+
+  useEffect(() => {
+    switch (type) {
+      case 'nfts':
+        setCostPlaceholder('ETH/SOL')
+        setIsNFT(true)
+        break
+
+      default:
+        setCostPlaceholder('$1000')
+        break
+    }
+  }, [type])
   return (
     <>
       <Button
@@ -136,35 +131,46 @@ const AddTransaction = () => {
             <Spacer />
             <Spacer />
 
-            <div>
-              <Text font={0.9} my={0} type="secondary" mb={0.5}>
-                Asset type
-              </Text>
-              <Select placeholder="NFTs" width={'100%'}>
-                <Select.Option value={'nfts'}>NFTs</Select.Option>
-                <Select.Option value={'cryptocurrency'}> Cryptocurrency</Select.Option>
-                <Select.Option value={'stablecoins'}>Stablecoins</Select.Option>
-                <Select.Option value={'fiat'}>Fiat</Select.Option>
-              </Select>
-            </div>
+            <Text font={0.9} my={0} type="secondary" mb={0.5}>
+              Asset type
+            </Text>
+            <Select
+              onChange={setType}
+              placeholder="Select type"
+              initialValue={'NFTs'}
+              width={'100%'}>
+              <Select.Option value={'nfts'}>NFTs</Select.Option>
+              <Select.Option value={'cryptocurrency'}> Cryptocurrency</Select.Option>
+              <Select.Option value={'stablecoins'}>Stablecoins</Select.Option>
+              <Select.Option value={'fiat'}>Fiat</Select.Option>
+            </Select>
+            <Spacer />
+            <Spacer />
+
+            <Text font={0.9} my={0} type="secondary" mb={0.5}>
+              Chain
+            </Text>
+            <Select disabled={!isNFT} placeholder="Select chain" width={'100%'}>
+              <Select.Option value={'eth'}>ETH</Select.Option>
+              <Select.Option value={'sol'}>SOL</Select.Option>
+            </Select>
             <Spacer />
             <Spacer />
 
             <DatePicker />
             <Spacer />
             <Spacer />
-
             <Input width={'100%'} placeholder="100">
               Quantity
             </Input>
             <Spacer />
             <Spacer />
-            <Input width={'100%'} placeholder="$1000">
+
+            <Input width={'100%'} placeholder={costPlaceholder}>
               Acquisition cost
             </Input>
             <Spacer />
             <Spacer />
-
             <Input width={'100%'} placeholder="$50">
               Fees
             </Input>
@@ -192,59 +198,19 @@ const DatePicker = () => {
   )
 }
 
+const formatNumber = n => `£${Number(n).toLocaleString()}`
+
 const TransactionsTable = () => {
-  const data = [
-    {
-      name: 'Doodles',
-      chain: 'ETH',
-      type: AssetType[AssetType.NFT],
-      quantity: 1,
-      acquisitionCost: 3653.461,
-      fees: 500,
-      createdAt: '2022-02-19T16:06:19.828Z',
-    },
-    {
-      name: 'SolPunks',
-      chain: 'SOL',
-      type: AssetType[AssetType.NFT],
-      quantity: 1,
-      acquisitionCost: 1000,
-      fees: 10,
-      createdAt: '2022-02-19T16:06:19.828Z',
-    },
-    {
-      name: 'BTC',
-      type: AssetType[AssetType.CRYPTOCURRENCY],
-      quantity: 3,
-      acquisitionCost: 30000,
-      fees: 10,
-      createdAt: '2022-02-19T16:06:19.828Z',
-    },
-    {
-      name: 'ETH',
-      type: AssetType[AssetType.CRYPTOCURRENCY],
-      quantity: 1,
-      acquisitionCost: 3000,
-      fees: 500,
-      createdAt: '2022-02-19T16:06:19.828Z',
-    },
-    {
-      name: 'SOL',
-      type: AssetType[AssetType.CRYPTOCURRENCY],
-      quantity: 10,
-      acquisitionCost: 100,
-      fees: 50,
-      createdAt: '2022-02-18T16:06:19.828Z',
-    },
-    {
-      name: 'GBP',
-      type: AssetType[AssetType.FIAT],
-      quantity: 1000,
-      acquisitionCost: 1.36,
-      fees: 0,
-      createdAt: '2022-02-19T16:06:19.828Z',
-    },
-  ]
+  const { transactions } = useApp()
+
+  let data = transactions?.map(x => {
+    x.quantity = x.quantity.toLocaleString()
+    x.acquisitionCost = formatNumber(x.acquisitionCost)
+    x.createdAt = new Date(x.createdAt).toDateString()
+    x.fees = formatNumber(x.fees)
+    return x
+  })
+
   return (
     <Table data={data}>
       <Table.Column prop="name" label="name" />
@@ -292,46 +258,33 @@ const Pie = () => {
 }
 
 const AssetsTable = () => {
-  const data = [
-    {
-      name: 'Stablecoins',
-      target: '30%',
-      change: '30.00%',
-      actual: '0.00%',
-      total: '£0.00',
-      correction: '£12,952.25',
-    },
-    {
-      name: 'Cryptocurrency',
-      target: '30.00%',
-      change: '15.71%',
-      actual: '14.29%',
-      total: '£6,170.45',
-      correction: '£6,781.80',
-    },
-    {
-      name: 'NFTs',
-      target: '20.00%',
-      change: '-64.75%',
-      actual: '84.75%',
-      total: '£36,588.24',
-      correction: '-£27,953.40',
-    },
-    {
-      name: 'FIAT',
-      target: '10.00%',
-      change: '9.31%',
-      actual: '0.69%',
-      total: '£300.00',
-      correction: '£4,017.42',
-    },
-  ]
+  const theme = useTheme()
+  const { distribution } = useApp()
+
+  let data = distribution?.map(x => {
+    x.total = (
+      <div style={{ display: 'flex', alignItem: 'center' }}>
+        <Text mr={0.5}>{x.total}</Text>{' '}
+        <Text style={{ color: theme.palette.cyanDark }}>{x.change}</Text>
+      </div>
+    )
+
+    const colors = {
+      20: theme.palette.violet,
+      40: theme.palette.violet,
+      60: theme.palette.violet,
+      80: theme.palette.violet,
+    }
+
+    x.target = <Progress colors={theme.palette.violet} value={x.target * 100} />
+    return x
+  })
+
   return (
     <Table data={data}>
       <Table.Column prop="name" label="name" />
       <Table.Column prop="target" label="target" />
-      <Table.Column prop="change" label="change" />
-      <Table.Column prop="actual" label="actual" />
+      <Table.Column prop="actual" label="holdings" />
       <Table.Column prop="total" label="total" />
       <Table.Column prop="correction" label="correction" />
     </Table>
@@ -369,7 +322,7 @@ const Area = () => {
       xaxis: {
         type: 'datetime',
         categories: [
-          '2018-09-19T00:00:00.000Z',
+          '2018-09-18T00:00:00.000Z',
           '2018-09-19T01:30:00.000Z',
           '2018-09-19T02:30:00.000Z',
           '2018-09-19T03:30:00.000Z',
